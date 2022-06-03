@@ -31,7 +31,10 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
         update_route: Union[bool, DEPENDENCIES] = True,
         delete_one_route: Union[bool, DEPENDENCIES] = True,
         delete_all_route: Union[bool, DEPENDENCIES] = True,
-        path_param_name: Optional[str] = "item_id",
+        path_param_name: Optional[str] = None,
+        entity_name: Optional[str] = None,
+        entity_name_plural: Optional[str] = None,
+        summary_prefix: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
 
@@ -48,7 +51,14 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
         prefix = str(prefix if prefix else self.schema.__name__).lower()
         prefix = self._base_path + prefix.strip("/")
 
+        self.entity_name = entity_name or "Item"
+        self.entity_name_plural = entity_name_plural if entity_name_plural else f"{entity_name}s"
+
+        if path_param_name is None:
+            path_param_name = f"{self.entity_name.lower().replace(' ', '_')}_id"
         self.path_param_name = path_param_name
+
+        self.summary_prefix = f"{summary_prefix} " if summary_prefix else ""
 
         super().__init__(prefix=prefix, tags=tags, **kwargs)
 
@@ -58,6 +68,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 self._get_all(),
                 methods=["GET"],
                 response_model=Page[self.schema] if self.pagination else List[self.schema],  # type: ignore
+                summary=f"{self.summary_prefix}List {self.entity_name_plural}",
                 dependencies=get_all_route,
                 status_code=status.HTTP_200_OK,
             )
@@ -68,6 +79,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 self._create(),
                 methods=["POST"],
                 response_model=self.schema,
+                summary=f"{self.summary_prefix}Create {self.entity_name}",
                 dependencies=create_route,
                 status_code=status.HTTP_201_CREATED,
             )
@@ -77,6 +89,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 "/",
                 self._delete_all(),
                 methods=["DELETE"],
+                summary=f"{self.summary_prefix}Remove All {self.entity_name_plural}",
                 dependencies=delete_all_route,
                 status_code=status.HTTP_204_NO_CONTENT,
             )
@@ -87,6 +100,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 self._get_one(),
                 methods=["GET"],
                 response_model=self.schema,
+                summary=f"{self.summary_prefix}Remove {self.entity_name}",
                 dependencies=get_one_route,
                 error_responses=[NOT_FOUND],
                 status_code=status.HTTP_200_OK,
