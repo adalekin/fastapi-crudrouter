@@ -3,9 +3,10 @@ from typing import Any, Callable, Generic, List, Optional, Type, Union
 
 from fastapi import APIRouter, HTTPException
 from fastapi.types import DecoratedCallable
+from fastapi_pagination import Page
 
-from ._types import T, DEPENDENCIES
-from ._utils import pagination_factory, schema_factory
+from ._types import DEPENDENCIES, T
+from ._utils import schema_factory
 
 NOT_FOUND = HTTPException(404, "Item not found")
 
@@ -23,7 +24,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
         update_schema: Optional[Type[T]] = None,
         prefix: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        paginate: Optional[int] = None,
+        pagination: bool = False,
         get_all_route: Union[bool, DEPENDENCIES] = True,
         get_one_route: Union[bool, DEPENDENCIES] = True,
         create_route: Union[bool, DEPENDENCIES] = True,
@@ -34,38 +35,33 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
     ) -> None:
 
         self.schema = schema
-        self.pagination = pagination_factory(max_limit=paginate)
+        self.pagination = pagination
         self._pk: str = self._pk if hasattr(self, "_pk") else "id"
         self.create_schema = (
-            create_schema
-            if create_schema
-            else schema_factory(self.schema, pk_field_name=self._pk, name="Create")
+            create_schema if create_schema else schema_factory(self.schema, pk_field_name=self._pk, name="Create")
         )
         self.update_schema = (
-            update_schema
-            if update_schema
-            else schema_factory(self.schema, pk_field_name=self._pk, name="Update")
+            update_schema if update_schema else schema_factory(self.schema, pk_field_name=self._pk, name="Update")
         )
 
         prefix = str(prefix if prefix else self.schema.__name__).lower()
         prefix = self._base_path + prefix.strip("/")
-        tags = tags or [prefix.strip("/").capitalize()]
 
         super().__init__(prefix=prefix, tags=tags, **kwargs)
 
         if get_all_route:
             self._add_api_route(
-                "",
+                "/",
                 self._get_all(),
                 methods=["GET"],
-                response_model=Optional[List[self.schema]],  # type: ignore
+                response_model=Page[self.schema] if self.pagination else List[self.schema],  # type: ignore
                 summary="Get All",
                 dependencies=get_all_route,
             )
 
         if create_route:
             self._add_api_route(
-                "",
+                "/",
                 self._create(),
                 methods=["POST"],
                 response_model=self.schema,
@@ -75,7 +71,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
 
         if delete_all_route:
             self._add_api_route(
-                "",
+                "/",
                 self._delete_all(),
                 methods=["DELETE"],
                 response_model=Optional[List[self.schema]],  # type: ignore
@@ -85,7 +81,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
 
         if get_one_route:
             self._add_api_route(
-                "/{item_id}",
+                "/{item_id}/",
                 self._get_one(),
                 methods=["GET"],
                 response_model=self.schema,
@@ -96,9 +92,9 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
 
         if update_route:
             self._add_api_route(
-                "/{item_id}",
+                "/{item_id}/",
                 self._update(),
-                methods=["PUT"],
+                methods=["PATCH"],
                 response_model=self.schema,
                 summary="Update One",
                 dependencies=update_route,
@@ -107,7 +103,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
 
         if delete_one_route:
             self._add_api_route(
-                "/{item_id}",
+                "/{item_id}/",
                 self._delete_one(),
                 methods=["DELETE"],
                 response_model=self.schema,
@@ -126,44 +122,30 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
     ) -> None:
         dependencies = [] if isinstance(dependencies, bool) else dependencies
         responses: Any = (
-            {err.status_code: {"detail": err.detail} for err in error_responses}
-            if error_responses
-            else None
+            {err.status_code: {"detail": err.detail} for err in error_responses} if error_responses else None
         )
 
-        super().add_api_route(
-            path, endpoint, dependencies=dependencies, responses=responses, **kwargs
-        )
+        super().add_api_route(path, endpoint, dependencies=dependencies, responses=responses, **kwargs)
 
-    def api_route(
-        self, path: str, *args: Any, **kwargs: Any
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+    def api_route(self, path: str, *args: Any, **kwargs: Any) -> Callable[[DecoratedCallable], DecoratedCallable]:
         """Overrides and exiting route if it exists"""
         methods = kwargs["methods"] if "methods" in kwargs else ["GET"]
         self.remove_api_route(path, methods)
         return super().api_route(path, *args, **kwargs)
 
-    def get(
-        self, path: str, *args: Any, **kwargs: Any
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+    def get(self, path: str, *args: Any, **kwargs: Any) -> Callable[[DecoratedCallable], DecoratedCallable]:
         self.remove_api_route(path, ["Get"])
         return super().get(path, *args, **kwargs)
 
-    def post(
-        self, path: str, *args: Any, **kwargs: Any
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+    def post(self, path: str, *args: Any, **kwargs: Any) -> Callable[[DecoratedCallable], DecoratedCallable]:
         self.remove_api_route(path, ["POST"])
         return super().post(path, *args, **kwargs)
 
-    def put(
-        self, path: str, *args: Any, **kwargs: Any
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+    def put(self, path: str, *args: Any, **kwargs: Any) -> Callable[[DecoratedCallable], DecoratedCallable]:
         self.remove_api_route(path, ["PUT"])
         return super().put(path, *args, **kwargs)
 
-    def delete(
-        self, path: str, *args: Any, **kwargs: Any
-    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+    def delete(self, path: str, *args: Any, **kwargs: Any) -> Callable[[DecoratedCallable], DecoratedCallable]:
         self.remove_api_route(path, ["DELETE"])
         return super().delete(path, *args, **kwargs)
 

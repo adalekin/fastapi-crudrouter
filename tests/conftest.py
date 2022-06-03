@@ -1,10 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
+from fastapi_pagination import add_pagination
 
 from .implementations import *
 
 
 def yield_test_client(app, impl):
+    add_pagination(app)
+
     if impl.__name__ == "tortoise_implementation":
         from tortoise.contrib.test import initializer, finalizer
 

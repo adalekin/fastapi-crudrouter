@@ -8,7 +8,6 @@ from tests import (
     Carrot,
     CarrotCreate,
     CarrotUpdate,
-    PAGINATION_SIZE,
     Potato,
     CUSTOM_TAGS,
 )
@@ -58,7 +57,7 @@ def tortoise_implementation(**kwargs):
             schema=Potato,
             db_model=PotatoModel,
             prefix="potato",
-            paginate=PAGINATION_SIZE,
+            pagination=True,
         ),
         dict(
             schema=Carrot,

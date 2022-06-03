@@ -11,7 +11,6 @@ from tests import (
     CarrotCreate,
     CarrotUpdate,
     CustomPotato,
-    PAGINATION_SIZE,
     Potato,
     PotatoType,
     CUSTOM_TAGS,
@@ -72,7 +71,7 @@ def sqlalchemy_implementation(db_uri: str):
             db_model=PotatoModel,
             db=session,
             prefix="potato",
-            paginate=PAGINATION_SIZE,
+            pagination=True,
         ),
         dict(
             schema=Carrot,
@@ -101,9 +100,7 @@ def sqlalchemy_implementation_custom_ids():
         type = Column(String)
 
     Base.metadata.create_all(bind=engine)
-    app.include_router(
-        SQLAlchemyCRUDRouter(schema=CustomPotato, db_model=PotatoModel, db=session)
-    )
+    app.include_router(SQLAlchemyCRUDRouter(schema=CustomPotato, db_model=PotatoModel, db=session))
 
     return app
 

@@ -1,9 +1,11 @@
 from typing import Any, Callable, List, Optional, Type, Union, Coroutine
 
 from fastapi import HTTPException
+from fastapi_pagination import Page, Params
+from fastapi_pagination.ext.gino import paginate
 
 from . import NOT_FOUND, CRUDGenerator, _utils
-from ._types import DEPENDENCIES, PAGINATION
+from ._types import DEPENDENCIES
 from ._types import PYDANTIC_SCHEMA as SCHEMA
 
 try:
@@ -34,7 +36,7 @@ class GinoCRUDRouter(CRUDGenerator[SCHEMA]):
         update_schema: Optional[Type[SCHEMA]] = None,
         prefix: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        paginate: Optional[int] = None,
+        pagination: bool = False,
         get_all_route: Union[bool, DEPENDENCIES] = True,
         get_one_route: Union[bool, DEPENDENCIES] = True,
         create_route: Union[bool, DEPENDENCIES] = True,
@@ -56,7 +58,7 @@ class GinoCRUDRouter(CRUDGenerator[SCHEMA]):
             update_schema=update_schema,
             prefix=prefix or db_model.__tablename__,
             tags=tags,
-            paginate=paginate,
+            pagination=pagination,
             get_all_route=get_all_route,
             get_one_route=get_one_route,
             create_route=create_route,
@@ -67,15 +69,16 @@ class GinoCRUDRouter(CRUDGenerator[SCHEMA]):
         )
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        async def route(
-            pagination: PAGINATION = self.pagination,
-        ) -> List[Model]:
-            skip, limit = pagination.get("skip"), pagination.get("limit")
+        if self.pagination:
 
-            db_models: List[Model] = (
-                await self.db_model.query.limit(limit).offset(skip).gino.all()
-            )
-            return db_models
+            async def route() -> Page[Model]:
+                return await paginate(query=self.db_model.query)  # type: ignore
+
+        else:
+
+            async def route() -> List[Model]:
+
+                return await self.db_model.query.gino.all()
 
         return route
 
@@ -123,7 +126,7 @@ class GinoCRUDRouter(CRUDGenerator[SCHEMA]):
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         async def route() -> List[Model]:
             await self.db_model.delete.gino.status()
-            return await self._get_all()(pagination={"skip": 0, "limit": None})
+            return []
 
         return route
 

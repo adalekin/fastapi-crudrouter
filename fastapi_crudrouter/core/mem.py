@@ -1,7 +1,10 @@
-from typing import Any, Callable, List, Type, cast, Optional, Union
+from typing import Any, Callable, List, Optional, Type, Union
 
-from . import CRUDGenerator, NOT_FOUND
-from ._types import DEPENDENCIES, PAGINATION, PYDANTIC_SCHEMA as SCHEMA
+from fastapi_pagination import Page, resolve_params, create_page
+
+from . import NOT_FOUND, CRUDGenerator
+from ._types import DEPENDENCIES
+from ._types import PYDANTIC_SCHEMA as SCHEMA
 
 CALLABLE = Callable[..., SCHEMA]
 CALLABLE_LIST = Callable[..., List[SCHEMA]]
@@ -9,20 +12,20 @@ CALLABLE_LIST = Callable[..., List[SCHEMA]]
 
 class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
     def __init__(
-        self,
-        schema: Type[SCHEMA],
-        create_schema: Optional[Type[SCHEMA]] = None,
-        update_schema: Optional[Type[SCHEMA]] = None,
-        prefix: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        paginate: Optional[int] = None,
-        get_all_route: Union[bool, DEPENDENCIES] = True,
-        get_one_route: Union[bool, DEPENDENCIES] = True,
-        create_route: Union[bool, DEPENDENCIES] = True,
-        update_route: Union[bool, DEPENDENCIES] = True,
-        delete_one_route: Union[bool, DEPENDENCIES] = True,
-        delete_all_route: Union[bool, DEPENDENCIES] = True,
-        **kwargs: Any
+            self,
+            schema: Type[SCHEMA],
+            create_schema: Optional[Type[SCHEMA]] = None,
+            update_schema: Optional[Type[SCHEMA]] = None,
+            prefix: Optional[str] = None,
+            tags: Optional[List[str]] = None,
+            pagination: bool = False,
+            get_all_route: Union[bool, DEPENDENCIES] = True,
+            get_one_route: Union[bool, DEPENDENCIES] = True,
+            create_route: Union[bool, DEPENDENCIES] = True,
+            update_route: Union[bool, DEPENDENCIES] = True,
+            delete_one_route: Union[bool, DEPENDENCIES] = True,
+            delete_all_route: Union[bool, DEPENDENCIES] = True,
+            **kwargs: Any
     ) -> None:
         super().__init__(
             schema=schema,
@@ -30,7 +33,7 @@ class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
             update_schema=update_schema,
             prefix=prefix,
             tags=tags,
-            paginate=paginate,
+            pagination=pagination,
             get_all_route=get_all_route,
             get_one_route=get_one_route,
             create_route=create_route,
@@ -44,15 +47,23 @@ class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
         self._id = 1
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        def route(pagination: PAGINATION = self.pagination) -> List[SCHEMA]:
-            skip, limit = pagination.get("skip"), pagination.get("limit")
-            skip = cast(int, skip)
+        if self.pagination:
 
-            return (
-                self.models[skip:]
-                if limit is None
-                else self.models[skip : skip + limit]
-            )
+            def route() -> Page[SCHEMA]:
+                params = resolve_params(params=None)
+                raw_params = params.to_raw_params()
+
+                if raw_params.limit is None:
+                    items = self.models[raw_params.offset:]
+                else:
+                    items = self.models[raw_params.offset: raw_params.offset + raw_params.limit]
+
+                return create_page(items, len(self.models), params)  # type: ignore
+
+        else:
+
+            def route() -> List[SCHEMA]:
+                return self.models
 
         return route
 
@@ -80,9 +91,7 @@ class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
         def route(item_id: int, model: self.update_schema) -> SCHEMA:  # type: ignore
             for ind, model_ in enumerate(self.models):
                 if model_.id == item_id:  # type: ignore
-                    self.models[ind] = self.schema(
-                        **model.dict(), id=model_.id  # type: ignore
-                    )
+                    self.models[ind] = self.schema(**model.dict(), id=model_.id)  # type: ignore
                     return self.models[ind]
 
             raise NOT_FOUND

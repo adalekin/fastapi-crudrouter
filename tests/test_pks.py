@@ -1,7 +1,7 @@
 from . import test_router
 
 potato_type = dict(name="russet", origin="Canada")
-URL = "/potato_type"
+URL = "/potato_type/"
 
 
 def test_get(string_pk_client):

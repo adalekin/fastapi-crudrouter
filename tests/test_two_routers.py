@@ -6,8 +6,8 @@ from .utils import compare_dict
 basic_potato = dict(thickness=0.24, mass=1.2, color="Brown", type="Russet")
 basic_carrot = dict(length=1.2, color="Orange")
 
-PotatoUrl = "/potato"
-CarrotUrl = "/carrot"
+PotatoUrl = "/potato/"
+CarrotUrl = "/carrot/"
 
 
 def test_get(client):
@@ -39,13 +39,13 @@ def test_update(client):
     carrot["color"] = "Red"
     carrot["length"] = 54.0
 
-    res = client.put(f'{CarrotUrl}/{data["id"]}', json=carrot)
+    res = client.patch(f'{CarrotUrl}{data["id"]}/', json=carrot)
     assert res.status_code == 200
     assert not compare_dict(res.json(), carrot, exclude=["id"])
     assert not compare_dict(res.json(), basic_carrot, exclude=["id"])
     assert compare_dict(res.json(), carrot, exclude=["id", "color"])
 
-    res = client.get(f'{CarrotUrl}/{data["id"]}')
+    res = client.get(f'{CarrotUrl}{data["id"]}/')
     assert res.status_code == 200
     assert not compare_dict(res.json(), carrot, exclude=["id"])
     assert not compare_dict(res.json(), basic_carrot, exclude=["id"])

@@ -4,15 +4,16 @@ from typing import (
     List,
     Optional,
     Type,
-    cast,
     Coroutine,
     Union,
 )
 
 from fastapi import HTTPException
+from fastapi_pagination import Page
+from fastapi_pagination.ext.ormar import paginate
 
 from . import CRUDGenerator, NOT_FOUND, _utils
-from ._types import DEPENDENCIES, PAGINATION
+from ._types import DEPENDENCIES
 
 try:
     from ormar import Model, NoMatch
@@ -35,13 +36,12 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
         update_schema: Optional[Type[Model]] = None,
         prefix: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        paginate: Optional[int] = None,
+        pagination: bool = False,
         get_all_route: Union[bool, DEPENDENCIES] = True,
         get_one_route: Union[bool, DEPENDENCIES] = True,
         create_route: Union[bool, DEPENDENCIES] = True,
         update_route: Union[bool, DEPENDENCIES] = True,
         delete_one_route: Union[bool, DEPENDENCIES] = True,
-        delete_all_route: Union[bool, DEPENDENCIES] = True,
         **kwargs: Any
     ) -> None:
         assert ormar_installed, "Ormar must be installed to use the OrmarCRUDRouter."
@@ -55,27 +55,28 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
             update_schema=update_schema or schema,
             prefix=prefix or schema.Meta.tablename,
             tags=tags,
-            paginate=paginate,
+            pagination=pagination,
             get_all_route=get_all_route,
             get_one_route=get_one_route,
             create_route=create_route,
             update_route=update_route,
             delete_one_route=delete_one_route,
-            delete_all_route=delete_all_route,
             **kwargs
         )
 
         self._INTEGRITY_ERROR = self._get_integrity_error_type()
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        async def route(
-            pagination: PAGINATION = self.pagination,
-        ) -> List[Optional[Model]]:
-            skip, limit = pagination.get("skip"), pagination.get("limit")
-            query = self.schema.objects.offset(cast(int, skip))
-            if limit:
-                query = query.limit(limit)
-            return await query.all()  # type: ignore
+        if self.pagination:
+
+            async def route() -> Page[Model]:
+                return await paginate(self.schema.objects)  # type: ignore
+
+        else:
+
+            async def route() -> List[Optional[Model]]:
+                query = self.schema.objects
+                return await query.all()  # type: ignore
 
         return route
 
@@ -83,9 +84,7 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
         async def route(item_id: self._pk_type) -> Model:  # type: ignore
             try:
                 filter_ = {self._pk: item_id}
-                model = await self.schema.objects.filter(
-                    _exclude=False, **filter_
-                ).first()
+                model = await self.schema.objects.filter(_exclude=False, **filter_).first()
             except NoMatch:
                 raise NOT_FOUND from None
             return model
@@ -111,9 +110,7 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
         ) -> Model:
             filter_ = {self._pk: item_id}
             try:
-                await self.schema.objects.filter(_exclude=False, **filter_).update(
-                    **model.dict(exclude_unset=True)
-                )
+                await self.schema.objects.filter(_exclude=False, **filter_).update(**model.dict(exclude_unset=True))
             except self._INTEGRITY_ERROR as e:
                 self._raise(e)
             return await self._get_one()(item_id)
@@ -123,7 +120,7 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         async def route() -> List[Optional[Model]]:
             await self.schema.objects.delete(each=True)
-            return await self._get_all()(pagination={"skip": 0, "limit": None})
+            return []
 
         return route
 

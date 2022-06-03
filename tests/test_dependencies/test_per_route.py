@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException
 from tests.conftest import yield_test_client
 from tests.implementations import implementations
 
-URLS = ["/potato", "/carrot"]
+URLS = ["/potato/", "/carrot/"]
 AUTH = {"Authorization": "Bearer my_token"}
 
 
@@ -46,12 +46,12 @@ def client(request):
 
 @pytest.mark.parametrize("url", URLS)
 def test_route_disable(client, url):
-    item_url = f"{url}/1"
+    item_url = f'{url.strip("/")}/1/'
     actions = [
         (client.get, url),
         (client.get, item_url),
         (client.post, url),
-        (client.put, item_url),
+        (client.patch, item_url),
         (client.delete, url),
         (client.delete, item_url),
     ]

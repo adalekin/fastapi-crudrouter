@@ -6,7 +6,7 @@ from fastapi_crudrouter import MemoryCRUDRouter
 
 from tests import Potato
 
-URL = "/potato"
+URL = "/potato/"
 
 
 def get_client(**kwargs):

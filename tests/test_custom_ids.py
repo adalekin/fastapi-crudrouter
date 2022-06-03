@@ -4,7 +4,7 @@ from . import test_router
 
 basic_potato = dict(potato_id=1, thickness=0.24, mass=1.2, color="Brown", type="Russet")
 
-PotatoUrl = "/potatoes"
+PotatoUrl = "/potatoes/"
 
 
 def test_get(custom_id_client):

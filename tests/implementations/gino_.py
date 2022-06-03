@@ -1,11 +1,11 @@
 import asyncio
 from fastapi import FastAPI
+
 from fastapi_crudrouter import GinoCRUDRouter
 from gino.ext.starlette import Gino
 from sqlalchemy_utils import create_database, database_exists, drop_database
 from tests import (
     CUSTOM_TAGS,
-    PAGINATION_SIZE,
     Carrot,
     CarrotCreate,
     CarrotUpdate,
@@ -31,6 +31,7 @@ def _setup_base_app():
     create_database(config.POSTGRES_URI)
 
     app = FastAPI()
+
     db = Gino(dsn=GINO_DATABASE_URL)
     db.init_app(app)
     return db, app
@@ -61,7 +62,7 @@ def gino_implementation(**kwargs):
             db_model=PotatoModel,
             db=db,
             prefix="potato",
-            paginate=PAGINATION_SIZE,
+            pagination=True,
         ),
         dict(
             schema=Carrot,

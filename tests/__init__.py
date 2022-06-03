@@ -2,7 +2,6 @@ from pydantic import BaseModel
 
 from .conf import config
 
-PAGINATION_SIZE = 10
 CUSTOM_TAGS = ["Tag1", "Tag2"]
 
 

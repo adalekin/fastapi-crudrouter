@@ -9,7 +9,6 @@ from tests import (
     CarrotCreate,
     CarrotUpdate,
     CustomPotato,
-    PAGINATION_SIZE,
     Potato,
     PotatoType,
     CUSTOM_TAGS,
@@ -72,7 +71,7 @@ def databases_implementation(db_uri: str):
             table=potatoes,
             schema=Potato,
             prefix="potato",
-            paginate=PAGINATION_SIZE,
+            pagination=True,
         ),
         dict(
             database=database,
@@ -114,9 +113,7 @@ def databases_implementation_custom_ids():
     async def shutdown():
         await database.disconnect()
 
-    potato_router = DatabasesCRUDRouter(
-        database=database, table=potatoes, schema=CustomPotato
-    )
+    potato_router = DatabasesCRUDRouter(database=database, table=potatoes, schema=CustomPotato)
     app.include_router(potato_router)
 
     return app

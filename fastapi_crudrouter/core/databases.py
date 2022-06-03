@@ -1,23 +1,16 @@
-from typing import (
-    Any,
-    Callable,
-    List,
-    Mapping,
-    Type,
-    Coroutine,
-    Optional,
-    Union,
-)
+from typing import Any, Callable, Coroutine, List, Mapping, Optional, Type, Union
 
 from fastapi import HTTPException
+from fastapi_pagination import Page
+from fastapi_pagination.ext.databases import paginate
 
-from . import CRUDGenerator, NOT_FOUND
-from ._types import PAGINATION, PYDANTIC_SCHEMA, DEPENDENCIES
+from . import NOT_FOUND, CRUDGenerator
+from ._types import DEPENDENCIES, PYDANTIC_SCHEMA
 from ._utils import AttrDict, get_pk_type
 
 try:
-    from sqlalchemy.sql.schema import Table
     from databases.core import Database
+    from sqlalchemy.sql.schema import Table
 except ImportError:
     Database = None  # type: ignore
     Table = None
@@ -30,9 +23,7 @@ CALLABLE = Callable[..., Coroutine[Any, Any, Model]]
 CALLABLE_LIST = Callable[..., Coroutine[Any, Any, List[Model]]]
 
 
-def pydantify_record(
-    models: Union[Model, List[Model]]
-) -> Union[AttrDict, List[AttrDict]]:
+def pydantify_record(models: Union[Model, List[Model]]) -> Union[AttrDict, List[AttrDict]]:
     if type(models) is list:
         return [AttrDict(**dict(model)) for model in models]
     else:
@@ -49,7 +40,7 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
         update_schema: Optional[Type[PYDANTIC_SCHEMA]] = None,
         prefix: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        paginate: Optional[int] = None,
+        pagination: bool = False,
         get_all_route: Union[bool, DEPENDENCIES] = True,
         get_one_route: Union[bool, DEPENDENCIES] = True,
         create_route: Union[bool, DEPENDENCIES] = True,
@@ -58,9 +49,7 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
         delete_all_route: Union[bool, DEPENDENCIES] = True,
         **kwargs: Any
     ) -> None:
-        assert (
-            databases_installed
-        ), "Databases and SQLAlchemy must be installed to use the DatabasesCRUDRouter."
+        assert databases_installed, "Databases and SQLAlchemy must be installed to use the DatabasesCRUDRouter."
 
         self.table = table
         self.db = database
@@ -74,7 +63,7 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
             update_schema=update_schema,
             prefix=prefix or table.name,
             tags=tags,
-            paginate=paginate,
+            pagination=pagination,
             get_all_route=get_all_route,
             get_one_route=get_one_route,
             create_route=create_route,
@@ -85,13 +74,16 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
         )
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        async def route(
-            pagination: PAGINATION = self.pagination,
-        ) -> List[Model]:
-            skip, limit = pagination.get("skip"), pagination.get("limit")
+        if self.pagination:
 
-            query = self.table.select().limit(limit).offset(skip)
-            return pydantify_record(await self.db.fetch_all(query))  # type: ignore
+            async def route() -> Page[Model]:
+                return pydantify_record(await paginate(db=self.db, query=self.table.select()))  # type: ignore
+
+        else:
+
+            async def route() -> List[Model]:
+                query = self.table.select()
+                return pydantify_record(await self.db.fetch_all(query))
 
         return route
 
@@ -125,15 +117,11 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
         return route
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(
-            item_id: self._pk_type, schema: self.update_schema  # type: ignore
-        ) -> Model:
+        async def route(item_id: self._pk_type, schema: self.update_schema) -> Model:  # type: ignore
             query = self.table.update().where(self._pk_col == item_id)
 
             try:
-                await self.db.fetch_one(
-                    query=query, values=schema.dict(exclude={self._pk})
-                )
+                await self.db.fetch_one(query=query, values=schema.dict(exclude={self._pk}))
                 return await self._get_one()(item_id)
             except Exception as e:
                 raise NOT_FOUND from e
@@ -145,7 +133,7 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
             query = self.table.delete()
             await self.db.execute(query=query)
 
-            return await self._get_all()(pagination={"skip": 0, "limit": None})
+            return []
 
         return route
 

@@ -1,7 +1,10 @@
-from typing import Any, Callable, List, Type, cast, Coroutine, Optional, Union
+from typing import Any, Callable, List, Type, Coroutine, Optional, Union
+
+from fastapi_pagination import Page
+from fastapi_pagination.ext.tortoise import paginate
 
 from . import CRUDGenerator, NOT_FOUND
-from ._types import DEPENDENCIES, PAGINATION, PYDANTIC_SCHEMA as SCHEMA
+from ._types import DEPENDENCIES, PYDANTIC_SCHEMA as SCHEMA
 
 try:
     from tortoise.models import Model
@@ -25,7 +28,7 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
         update_schema: Optional[Type[SCHEMA]] = None,
         prefix: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        paginate: Optional[int] = None,
+        pagination: bool = False,
         get_all_route: Union[bool, DEPENDENCIES] = True,
         get_one_route: Union[bool, DEPENDENCIES] = True,
         create_route: Union[bool, DEPENDENCIES] = True,
@@ -34,9 +37,7 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
         delete_all_route: Union[bool, DEPENDENCIES] = True,
         **kwargs: Any
     ) -> None:
-        assert (
-            tortoise_installed
-        ), "Tortoise ORM must be installed to use the TortoiseCRUDRouter."
+        assert tortoise_installed, "Tortoise ORM must be installed to use the TortoiseCRUDRouter."
 
         self.db_model = db_model
         self._pk: str = db_model.describe()["pk_field"]["db_column"]
@@ -47,7 +48,7 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
             update_schema=update_schema,
             prefix=prefix or db_model.describe()["name"].replace("None.", ""),
             tags=tags,
-            paginate=paginate,
+            pagination=pagination,
             get_all_route=get_all_route,
             get_one_route=get_one_route,
             create_route=create_route,
@@ -58,12 +59,15 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
         )
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        async def route(pagination: PAGINATION = self.pagination) -> List[Model]:
-            skip, limit = pagination.get("skip"), pagination.get("limit")
-            query = self.db_model.all().offset(cast(int, skip))
-            if limit:
-                query = query.limit(limit)
-            return await query
+        if self.pagination:
+
+            async def route() -> Page[Model]:
+                return await paginate(self.db_model.all())  # type: ignore
+
+        else:
+
+            async def route() -> List[Model]:
+                return await self.db_model.all()
 
         return route
 
@@ -88,12 +92,8 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(
-            item_id: int, model: self.update_schema  # type: ignore
-        ) -> Model:
-            await self.db_model.filter(id=item_id).update(
-                **model.dict(exclude_unset=True)
-            )
+        async def route(item_id: int, model: self.update_schema) -> Model:  # type: ignore
+            await self.db_model.filter(id=item_id).update(**model.dict(exclude_unset=True))
             return await self._get_one()(item_id)
 
         return route
@@ -101,7 +101,7 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         async def route() -> List[Model]:
             await self.db_model.all().delete()
-            return await self._get_all()(pagination={"skip": 0, "limit": None})
+            return []
 
         return route
 
