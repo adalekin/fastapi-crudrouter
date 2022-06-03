@@ -1,6 +1,6 @@
 from typing import Any, Callable, Coroutine, List, Mapping, Optional, Type, Union
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Path
 from fastapi_pagination import Page
 
 from . import NOT_FOUND, CRUDGenerator
@@ -88,7 +88,7 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
         return route
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: self._pk_type) -> Model:  # type: ignore
+        async def route(item_id: self._pk_type = Path(..., alias=self.path_param_name)) -> Model:  # type: ignore
             query = self.table.select().where(self._pk_col == item_id)
             model = await self.db.fetch_one(query)
 
@@ -117,7 +117,7 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
         return route
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: self._pk_type, schema: self.update_schema) -> Model:  # type: ignore
+        async def route(schema: self.update_schema, item_id: self._pk_type = Path(..., alias=self.path_param_name)) -> Model:  # type: ignore
             query = self.table.update().where(self._pk_col == item_id)
 
             try:
@@ -136,7 +136,7 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
         return route
 
     def _delete_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: self._pk_type) -> Model:  # type: ignore
+        async def route(item_id: self._pk_type = Path(..., alias=self.path_param_name)) -> Model:  # type: ignore
             query = self.table.delete().where(self._pk_col == item_id)
 
             try:

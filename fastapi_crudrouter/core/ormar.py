@@ -8,7 +8,7 @@ from typing import (
     Union,
 )
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Path
 from fastapi_pagination import Page
 
 from . import CRUDGenerator, NOT_FOUND, _utils
@@ -81,7 +81,7 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
         return route
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: self._pk_type) -> Model:  # type: ignore
+        async def route(item_id: self._pk_type = Path(..., alias=self.path_param_name)) -> Model:  # type: ignore
             try:
                 filter_ = {self._pk: item_id}
                 model = await self.schema.objects.filter(_exclude=False, **filter_).first()
@@ -105,8 +105,8 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
         async def route(
-            item_id: self._pk_type,  # type: ignore
             model: self.update_schema,  # type: ignore
+            item_id: self._pk_type = Path(..., alias=self.path_param_name),  # type: ignore
         ) -> Model:
             filter_ = {self._pk: item_id}
             try:
@@ -124,7 +124,7 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
         return route
 
     def _delete_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: self._pk_type) -> Model:  # type: ignore
+        async def route(item_id: self._pk_type = Path(..., alias=self.path_param_name)) -> Model:  # type: ignore
             model = await self._get_one()(item_id)
             await model.delete()
             return model

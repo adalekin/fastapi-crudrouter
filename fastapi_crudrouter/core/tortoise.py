@@ -1,5 +1,6 @@
 from typing import Any, Callable, List, Type, Coroutine, Optional, Union
 
+from fastapi import Path
 from fastapi_pagination import Page
 
 from . import CRUDGenerator, NOT_FOUND
@@ -72,7 +73,7 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: int) -> Model:
+        async def route(item_id: int = Path(..., alias=self.path_param_name)) -> Model:
             model = await self.db_model.filter(id=item_id).first()
 
             if model:
@@ -92,7 +93,10 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: int, model: self.update_schema) -> Model:  # type: ignore
+        async def route(
+            model: self.update_schema,
+            item_id: int = Path(..., alias=self.path_param_name),
+        ) -> Model:  # type: ignore
             await self.db_model.filter(id=item_id).update(**model.dict(exclude_unset=True))
             return await self._get_one()(item_id)
 
@@ -105,7 +109,7 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _delete_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: int) -> Model:
+        async def route(item_id: int = Path(..., alias=self.path_param_name)) -> Model:
             model: Model = await self._get_one()(item_id)
             await self.db_model.filter(id=item_id).delete()
 

@@ -1,6 +1,6 @@
 from typing import Any, Callable, Generator, List, Optional, Type, Union
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Path
 from fastapi_pagination import Page
 
 from . import NOT_FOUND, CRUDGenerator, _utils
@@ -108,7 +108,7 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(item_id: self._pk_type, db: Session = Depends(self.db_func)) -> Model:  # type: ignore
+        def route(db: Session = Depends(self.db_func), item_id: self._pk_type = Path(..., alias=self.path_param_name)) -> Model:  # type: ignore
             model: Model = db.query(self.db_model).get(item_id)
 
             if model:
@@ -137,12 +137,12 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
         def route(
-            item_id: self._pk_type,  # type: ignore
             model: self.update_schema,  # type: ignore
+            item_id: self._pk_type = Path(..., alias=self.path_param_name),  # type: ignore
             db: Session = Depends(self.db_func),
         ) -> Model:
             try:
-                db_model: Model = self._get_one()(item_id, db)
+                db_model: Model = self._get_one()(db=db, item_id=item_id)
 
                 for key, value in model.dict(exclude={self._pk}).items():
                     if hasattr(db_model, key):
@@ -166,8 +166,8 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _delete_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(item_id: self._pk_type, db: Session = Depends(self.db_func)) -> Model:  # type: ignore
-            db_model: Model = self._get_one()(item_id, db)
+        def route(item_id: self._pk_type = Path(..., alias=self.path_param_name), db: Session = Depends(self.db_func)) -> Model:  # type: ignore
+            db_model: Model = self._get_one()(db=db, item_id=item_id)
             db.delete(db_model)
             db.commit()
 

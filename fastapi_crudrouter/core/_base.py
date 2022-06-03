@@ -31,6 +31,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
         update_route: Union[bool, DEPENDENCIES] = True,
         delete_one_route: Union[bool, DEPENDENCIES] = True,
         delete_all_route: Union[bool, DEPENDENCIES] = True,
+        path_param_name: Optional[str] = "item_id",
         **kwargs: Any,
     ) -> None:
 
@@ -47,6 +48,8 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
         prefix = str(prefix if prefix else self.schema.__name__).lower()
         prefix = self._base_path + prefix.strip("/")
 
+        self.path_param_name = path_param_name
+
         super().__init__(prefix=prefix, tags=tags, **kwargs)
 
         if get_all_route:
@@ -55,7 +58,6 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 self._get_all(),
                 methods=["GET"],
                 response_model=Page[self.schema] if self.pagination else List[self.schema],  # type: ignore
-                summary="Get All",
                 dependencies=get_all_route,
                 status_code=status.HTTP_200_OK,
             )
@@ -66,7 +68,6 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 self._create(),
                 methods=["POST"],
                 response_model=self.schema,
-                summary="Create One",
                 dependencies=create_route,
                 status_code=status.HTTP_201_CREATED,
             )
@@ -76,18 +77,16 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 "/",
                 self._delete_all(),
                 methods=["DELETE"],
-                summary="Delete All",
                 dependencies=delete_all_route,
                 status_code=status.HTTP_204_NO_CONTENT,
             )
 
         if get_one_route:
             self._add_api_route(
-                "/{item_id}/",
+                f"/{{{self.path_param_name}}}/",
                 self._get_one(),
                 methods=["GET"],
                 response_model=self.schema,
-                summary="Get One",
                 dependencies=get_one_route,
                 error_responses=[NOT_FOUND],
                 status_code=status.HTTP_200_OK,
@@ -95,11 +94,10 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
 
         if update_route:
             self._add_api_route(
-                "/{item_id}/",
+                f"/{{{self.path_param_name}}}/",
                 self._update(),
                 methods=["PATCH"],
                 response_model=self.schema,
-                summary="Update One",
                 dependencies=update_route,
                 error_responses=[NOT_FOUND],
                 status_code=status.HTTP_200_OK,
@@ -107,11 +105,10 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
 
         if delete_one_route:
             self._add_api_route(
-                "/{item_id}/",
+                f"/{{{self.path_param_name}}}/",
                 self._delete_one(),
                 methods=["DELETE"],
                 response_model=self.schema,
-                summary="Delete One",
                 dependencies=delete_one_route,
                 error_responses=[NOT_FOUND],
                 status_code=status.HTTP_200_OK,

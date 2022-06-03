@@ -1,7 +1,7 @@
 from typing import Any, Callable, List, Optional, Type, Union, Coroutine
 
-from fastapi import HTTPException
-from fastapi_pagination import Page, Params
+from fastapi import HTTPException, Path
+from fastapi_pagination import Page
 
 from . import NOT_FOUND, CRUDGenerator, _utils
 from ._types import DEPENDENCIES
@@ -83,7 +83,7 @@ class GinoCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: self._pk_type) -> Model:  # type: ignore
+        async def route(item_id: self._pk_type = Path(..., alias=self.path_param_name)) -> Model:  # type: ignore
             model: Model = await self.db_model.get(item_id)
 
             if model:
@@ -108,8 +108,8 @@ class GinoCRUDRouter(CRUDGenerator[SCHEMA]):
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
         async def route(
-            item_id: self._pk_type,  # type: ignore
             model: self.update_schema,  # type: ignore
+            item_id: self._pk_type = Path(..., alias=self.path_param_name),  # type: ignore
         ) -> Model:
             try:
                 db_model: Model = await self._get_one()(item_id)
@@ -130,7 +130,7 @@ class GinoCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _delete_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        async def route(item_id: self._pk_type) -> Model:  # type: ignore
+        async def route(item_id: self._pk_type = Path(..., alias=self.path_param_name)) -> Model:  # type: ignore
             db_model: Model = await self._get_one()(item_id)
             await db_model.delete()
 

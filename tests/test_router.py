@@ -134,7 +134,7 @@ def test_delete_all(
         assert len(data) >= 2
 
     res = client.delete(url)
-    assert res.status_code == 204
+    assert res.status_code == 204, res.json()
 
     data = client.get(url).json()
 

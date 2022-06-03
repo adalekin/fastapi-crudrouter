@@ -1,5 +1,6 @@
 from typing import Any, Callable, List, Optional, Type, Union
 
+from fastapi import Path
 from fastapi_pagination import Page, resolve_params, create_page
 
 from . import NOT_FOUND, CRUDGenerator
@@ -12,20 +13,20 @@ CALLABLE_LIST = Callable[..., List[SCHEMA]]
 
 class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
     def __init__(
-            self,
-            schema: Type[SCHEMA],
-            create_schema: Optional[Type[SCHEMA]] = None,
-            update_schema: Optional[Type[SCHEMA]] = None,
-            prefix: Optional[str] = None,
-            tags: Optional[List[str]] = None,
-            pagination: bool = False,
-            get_all_route: Union[bool, DEPENDENCIES] = True,
-            get_one_route: Union[bool, DEPENDENCIES] = True,
-            create_route: Union[bool, DEPENDENCIES] = True,
-            update_route: Union[bool, DEPENDENCIES] = True,
-            delete_one_route: Union[bool, DEPENDENCIES] = True,
-            delete_all_route: Union[bool, DEPENDENCIES] = True,
-            **kwargs: Any
+        self,
+        schema: Type[SCHEMA],
+        create_schema: Optional[Type[SCHEMA]] = None,
+        update_schema: Optional[Type[SCHEMA]] = None,
+        prefix: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        pagination: bool = False,
+        get_all_route: Union[bool, DEPENDENCIES] = True,
+        get_one_route: Union[bool, DEPENDENCIES] = True,
+        create_route: Union[bool, DEPENDENCIES] = True,
+        update_route: Union[bool, DEPENDENCIES] = True,
+        delete_one_route: Union[bool, DEPENDENCIES] = True,
+        delete_all_route: Union[bool, DEPENDENCIES] = True,
+        **kwargs: Any
     ) -> None:
         super().__init__(
             schema=schema,
@@ -54,9 +55,9 @@ class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
                 raw_params = params.to_raw_params()
 
                 if raw_params.limit is None:
-                    items = self.models[raw_params.offset:]
+                    items = self.models[raw_params.offset :]
                 else:
-                    items = self.models[raw_params.offset: raw_params.offset + raw_params.limit]
+                    items = self.models[raw_params.offset : raw_params.offset + raw_params.limit]
 
                 return create_page(items, len(self.models), params)  # type: ignore
 
@@ -68,7 +69,7 @@ class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _get_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(item_id: int) -> SCHEMA:
+        def route(item_id: int = Path(..., alias=self.path_param_name)) -> SCHEMA:
             for model in self.models:
                 if model.id == item_id:  # type: ignore
                     return model
@@ -88,7 +89,7 @@ class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _update(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(item_id: int, model: self.update_schema) -> SCHEMA:  # type: ignore
+        def route(model: self.update_schema, item_id: int = Path(..., alias=self.path_param_name)) -> SCHEMA:  # type: ignore
             for ind, model_ in enumerate(self.models):
                 if model_.id == item_id:  # type: ignore
                     self.models[ind] = self.schema(**model.dict(), id=model_.id)  # type: ignore
@@ -105,7 +106,7 @@ class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _delete_one(self, *args: Any, **kwargs: Any) -> CALLABLE:
-        def route(item_id: int) -> SCHEMA:
+        def route(item_id: int = Path(..., alias=self.path_param_name)) -> SCHEMA:
             for ind, model in enumerate(self.models):
                 if model.id == item_id:  # type: ignore
                     del self.models[ind]
