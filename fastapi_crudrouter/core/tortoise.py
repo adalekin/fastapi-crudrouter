@@ -1,7 +1,6 @@
 from typing import Any, Callable, List, Type, Coroutine, Optional, Union
 
 from fastapi_pagination import Page
-from fastapi_pagination.ext.tortoise import paginate
 
 from . import CRUDGenerator, NOT_FOUND
 from ._types import DEPENDENCIES, PYDANTIC_SCHEMA as SCHEMA
@@ -60,6 +59,7 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         if self.pagination:
+            from fastapi_pagination.ext.tortoise import paginate
 
             async def route() -> Page[Model]:
                 return await paginate(self.db_model.all())  # type: ignore
@@ -99,9 +99,8 @@ class TortoiseCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        async def route() -> List[Model]:
+        async def route() -> None:
             await self.db_model.all().delete()
-            return []
 
         return route
 

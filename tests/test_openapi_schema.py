@@ -36,7 +36,7 @@ class TestOpenAPISpec:
         paths = schema["paths"]
 
         for method in ["get", "post", "delete"]:
-            assert "200" in paths[path][method]["responses"]
+            assert any(r.startswith("20") for r in paths[path][method]["responses"])
 
         assert "422" in paths[path]["post"]["responses"]
 

@@ -10,7 +10,6 @@ from typing import (
 
 from fastapi import HTTPException
 from fastapi_pagination import Page
-from fastapi_pagination.ext.ormar import paginate
 
 from . import CRUDGenerator, NOT_FOUND, _utils
 from ._types import DEPENDENCIES
@@ -68,6 +67,7 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         if self.pagination:
+            from fastapi_pagination.ext.ormar import paginate
 
             async def route() -> Page[Model]:
                 return await paginate(self.schema.objects)  # type: ignore
@@ -118,9 +118,8 @@ class OrmarCRUDRouter(CRUDGenerator[Model]):
         return route
 
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        async def route() -> List[Optional[Model]]:
+        async def route() -> None:
             await self.schema.objects.delete(each=True)
-            return []
 
         return route
 

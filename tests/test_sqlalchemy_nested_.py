@@ -9,8 +9,8 @@ from fastapi_crudrouter import SQLAlchemyCRUDRouter
 from tests import ORMModel, test_router
 from tests.implementations.sqlalchemy_ import _setup_base_app
 
-CHILD_URL = "/child"
-PARENT_URL = "/parent"
+CHILD_URL = "/child/"
+PARENT_URL = "/parent/"
 
 
 class ChildSchema(ORMModel):
@@ -62,7 +62,7 @@ def test_nested_models():
     parent = test_router.test_post(client, PARENT_URL, dict())
     test_router.test_post(client, CHILD_URL, dict(id=0, parent_id=parent["id"]))
 
-    res = client.get(f'{PARENT_URL}/{parent["id"]}')
+    res = client.get(f'{PARENT_URL}{parent["id"]}/')
     assert res.status_code == 200, res.json()
 
     data = res.json()

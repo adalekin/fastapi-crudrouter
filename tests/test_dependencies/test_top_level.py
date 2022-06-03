@@ -6,7 +6,7 @@ import pytest
 from tests.implementations import implementations
 from tests.conftest import yield_test_client
 
-URLS = ["/potato", "/carrot"]
+URLS = ["/potato/", "/carrot/"]
 AUTH = {"Authorization": "Bearer my_token"}
 
 
@@ -39,12 +39,12 @@ class TestTopLevelDependencies:
     def test_authorization(client, url):
         assert client.get(url, headers=AUTH).status_code == 200
         assert client.post(url, headers=AUTH).status_code != 401
-        assert client.delete(url, headers=AUTH).status_code == 200
+        assert client.delete(url, headers=AUTH).status_code == 204
 
         for id_ in [-1, 1, 0, 14]:
-            assert client.get(f"{url}/{id_}", headers=AUTH).status_code != 401
-            assert client.put(f"{url}/{id_}", headers=AUTH).status_code != 401
-            assert client.delete(f"{url}/{id_}", headers=AUTH).status_code != 401
+            assert client.get(f"{url}{id_}/", headers=AUTH).status_code != 401
+            assert client.patch(f"{url}{id_}/", headers=AUTH).status_code != 401
+            assert client.delete(f"{url}{id_}/", headers=AUTH).status_code != 401
 
     @staticmethod
     def test_authorization_fail(client, url):
@@ -53,6 +53,6 @@ class TestTopLevelDependencies:
         assert client.post(url).status_code == 401
 
         for id_ in [-1, 1, 0, 14]:
-            assert client.get(f"{url}/{id_}").status_code == 401
-            assert client.put(f"{url}/{id_}").status_code == 401
-            assert client.delete(f"{url}/{id_}").status_code == 401
+            assert client.get(f"{url}{id_}/").status_code == 401
+            assert client.patch(f"{url}{id_}/").status_code == 401
+            assert client.delete(f"{url}{id_}/").status_code == 401

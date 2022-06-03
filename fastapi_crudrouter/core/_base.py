@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Generic, List, Optional, Type, Union
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from fastapi.types import DecoratedCallable
 from fastapi_pagination import Page
 
@@ -57,6 +57,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 response_model=Page[self.schema] if self.pagination else List[self.schema],  # type: ignore
                 summary="Get All",
                 dependencies=get_all_route,
+                status_code=status.HTTP_200_OK,
             )
 
         if create_route:
@@ -67,6 +68,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 response_model=self.schema,
                 summary="Create One",
                 dependencies=create_route,
+                status_code=status.HTTP_201_CREATED,
             )
 
         if delete_all_route:
@@ -74,9 +76,9 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 "/",
                 self._delete_all(),
                 methods=["DELETE"],
-                response_model=Optional[List[self.schema]],  # type: ignore
                 summary="Delete All",
                 dependencies=delete_all_route,
+                status_code=status.HTTP_204_NO_CONTENT,
             )
 
         if get_one_route:
@@ -88,6 +90,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 summary="Get One",
                 dependencies=get_one_route,
                 error_responses=[NOT_FOUND],
+                status_code=status.HTTP_200_OK,
             )
 
         if update_route:
@@ -99,6 +102,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 summary="Update One",
                 dependencies=update_route,
                 error_responses=[NOT_FOUND],
+                status_code=status.HTTP_200_OK,
             )
 
         if delete_one_route:
@@ -110,6 +114,7 @@ class CRUDGenerator(Generic[T], APIRouter, ABC):
                 summary="Delete One",
                 dependencies=delete_one_route,
                 error_responses=[NOT_FOUND],
+                status_code=status.HTTP_200_OK,
             )
 
     def _add_api_route(

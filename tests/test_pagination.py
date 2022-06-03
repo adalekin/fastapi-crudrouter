@@ -105,7 +105,7 @@ class TestPagination:
         client.delete(PotatoUrl)
         for i in range(size):
             res = client.post(url=PotatoUrl, json=basic_potato)
-            assert res.status_code == 200, res.json()
+            assert res.status_code == 201, res.json()
 
         res = client.get(PotatoUrl)
         assert res.status_code == 200, res.json()

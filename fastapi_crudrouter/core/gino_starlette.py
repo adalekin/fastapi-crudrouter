@@ -2,7 +2,6 @@ from typing import Any, Callable, List, Optional, Type, Union, Coroutine
 
 from fastapi import HTTPException
 from fastapi_pagination import Page, Params
-from fastapi_pagination.ext.gino import paginate
 
 from . import NOT_FOUND, CRUDGenerator, _utils
 from ._types import DEPENDENCIES
@@ -70,6 +69,7 @@ class GinoCRUDRouter(CRUDGenerator[SCHEMA]):
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         if self.pagination:
+            from fastapi_pagination.ext.gino import paginate
 
             async def route() -> Page[Model]:
                 return await paginate(query=self.db_model.query)  # type: ignore
@@ -124,9 +124,8 @@ class GinoCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        async def route() -> List[Model]:
+        async def route() -> None:
             await self.db_model.delete.gino.status()
-            return []
 
         return route
 

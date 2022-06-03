@@ -2,13 +2,11 @@ from typing import Any, Callable, Generator, List, Optional, Type, Union
 
 from fastapi import Depends, HTTPException
 from fastapi_pagination import Page
-from fastapi_pagination.ext.sqlalchemy import paginate
-from fastapi_utils.dependencies.sqlalchemy import filter_spec
 
 from . import NOT_FOUND, CRUDGenerator, _utils
 from ._types import DEPENDENCIES
 from ._types import PYDANTIC_SCHEMA as SCHEMA
-from ._utils import sort_spec
+from ._utils import sort_spec, filter_spec
 
 try:
     from sqlalchemy.exc import IntegrityError
@@ -70,7 +68,10 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
         )
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
+        from sqlalchemy_filters import apply_filters, apply_sort
+
         if self.pagination:
+            from fastapi_pagination.ext.sqlalchemy import paginate
 
             def route(
                 db: Session = Depends(self.db_func),
@@ -158,11 +159,9 @@ class SQLAlchemyCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        def route(db: Session = Depends(self.db_func)) -> List[Model]:
+        def route(db: Session = Depends(self.db_func)) -> None:
             db.query(self.db_model).delete()
             db.commit()
-
-            return []
 
         return route
 

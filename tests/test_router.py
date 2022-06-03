@@ -19,7 +19,7 @@ def test_get(
     data = res.json()
 
     assert res.status_code == 200, data
-    if pagination_size is not None:
+    if "items" in data:
         assert type(data["items"]) == list and len(data["items"]) == expected_length
     else:
         assert type(data) == list and len(data) == expected_length
@@ -31,7 +31,7 @@ def test_post(
 ) -> dict:
     model = model or basic_potato
     res = client.post(url, json=model)
-    assert res.status_code == 200, res.json()
+    assert res.status_code == 201, res.json()
 
     params = {}
     if pagination_size is not None:
@@ -39,7 +39,7 @@ def test_post(
 
     data = client.get(url, params=params).json()
 
-    if pagination_size is not None:
+    if "items" in data:
         assert len(data["items"]) == expected_length
     else:
         assert len(data) == expected_length
@@ -50,7 +50,7 @@ def test_post(
 def test_get_one(client, url: str = URL, model: Dict = None, id_key: str = "id"):
     model = model or basic_potato
     res = client.post(url, json=model)
-    assert res.status_code == 200
+    assert res.status_code == 201
     id_ = res.json()[id_key]
 
     data = client.get(url).json()
@@ -68,7 +68,7 @@ def test_update(client, url: str = URL, model: Dict = None, id_key: str = "id"):
     model = model or basic_potato
     res = client.post(url, json=model)
     data = res.json()
-    assert res.status_code == 200
+    assert res.status_code == 201
 
     test_get(client, url, expected_length=1)
 
@@ -90,7 +90,7 @@ def test_delete_one(client, url: str = URL, model: Dict = None, id_key: str = "i
     model = model or basic_potato
     res = client.post(url, json=model)
     data = res.json()
-    assert res.status_code == 200
+    assert res.status_code == 201
 
     res = client.get(f"{url}{data[id_key]}/")
     assert res.status_code == 200
@@ -104,7 +104,12 @@ def test_delete_one(client, url: str = URL, model: Dict = None, id_key: str = "i
 
     res = client.get(url)
     assert res.status_code == 200
-    assert len(res.json()) < length_before
+
+    data = res.json()
+    if "items" in data:
+        assert len(data["items"]) < length_before
+    else:
+        assert len(res.json()) < length_before
 
 
 def test_delete_all(
@@ -117,10 +122,10 @@ def test_delete_all(
     model2 = model2 or basic_potato
 
     res = client.post(url, json=model)
-    assert res.status_code == 200
+    assert res.status_code == 201
 
     res = client.post(url, json=model2)
-    assert res.status_code == 200
+    assert res.status_code == 201
 
     data = client.get(url).json()
     if "items" in data:
@@ -129,8 +134,7 @@ def test_delete_all(
         assert len(data) >= 2
 
     res = client.delete(url)
-    assert res.status_code == 200
-    assert len(res.json()) == 0
+    assert res.status_code == 204
 
     data = client.get(url).json()
 

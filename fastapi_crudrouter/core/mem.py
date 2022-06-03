@@ -99,9 +99,8 @@ class MemoryCRUDRouter(CRUDGenerator[SCHEMA]):
         return route
 
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        def route() -> List[SCHEMA]:
+        def route() -> None:
             self.models = []
-            return self.models
 
         return route
 

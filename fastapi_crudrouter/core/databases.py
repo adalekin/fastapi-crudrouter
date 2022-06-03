@@ -2,7 +2,6 @@ from typing import Any, Callable, Coroutine, List, Mapping, Optional, Type, Unio
 
 from fastapi import HTTPException
 from fastapi_pagination import Page
-from fastapi_pagination.ext.databases import paginate
 
 from . import NOT_FOUND, CRUDGenerator
 from ._types import DEPENDENCIES, PYDANTIC_SCHEMA
@@ -75,9 +74,10 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
 
     def _get_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
         if self.pagination:
+            from fastapi_pagination.ext.databases import paginate
 
             async def route() -> Page[Model]:
-                return pydantify_record(await paginate(db=self.db, query=self.table.select()))  # type: ignore
+                return await paginate(db=self.db, query=self.table.select())  # type: ignore
 
         else:
 
@@ -129,11 +129,9 @@ class DatabasesCRUDRouter(CRUDGenerator[PYDANTIC_SCHEMA]):
         return route
 
     def _delete_all(self, *args: Any, **kwargs: Any) -> CALLABLE_LIST:
-        async def route() -> List[Model]:
+        async def route() -> None:
             query = self.table.delete()
             await self.db.execute(query=query)
-
-            return []
 
         return route
 
